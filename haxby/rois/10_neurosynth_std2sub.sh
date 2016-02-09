@@ -35,18 +35,6 @@ subject="$1"
 roidir="/data1/ffg05/analysis/rois"
 runtype='func'
 
-i_roifile="/mnt/nfs/psych/faceMemoryMRI/scripts/connpaper/rois/${roi}_rad6.nii.gz"
-prebase="/mnt/nfs/psych4/haxby01/analysis/preprocessed"
-outbase="/mnt/nfs/psych4/haxby01/rois/mni2func"
-
-  fdir="${prebase}/${subject}/func"
-  rdir="${fdir}/reg"
-  o_roifile="${outbase}/${subject}/${roi}.nii.gz"
-    
-  run "gen_applywarp.rb --overwrite -i ${i_roifile} -r ${rdir} -w 'standard-to-exfunc' -o ${o_roifile} -m ${fdir}/mask.nii.gz --interp nn"
-  run "ln -sf ${fdir}/mean_func.nii.gz ${outbase}/${subject}/mean_func.nii.gz"
-
-
 
 ###
 # Transform from standard to functional space
