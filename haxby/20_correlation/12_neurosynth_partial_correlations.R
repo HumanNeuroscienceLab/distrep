@@ -11,8 +11,6 @@
 # Load packages
 if (!any(.libPaths() == "/home/zshehzad/R_libs")) .libPaths(c("~/R_libs", .libPaths()))
 library(plyr)
-library(ggplot2)
-library(RColorBrewer)
 suppressMessages(library(niftir))
 suppressMessages(library(doMC))
 registerDoMC(24)

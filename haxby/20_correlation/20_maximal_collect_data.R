@@ -136,17 +136,17 @@ topvox.betas <- llply(lst.nvoxs, function(topk) { # top category-selective voxel
         # find top voxels (maximally selective)
         top_inds <- order(activity_map, decreasing=T)[1:topk]
         # select those voxels in the beta map of both even and odd runs
-        max.betas.even <- betas[runs=="even",ci,top_inds]
-        max.betas.odd  <- betas[runs=="odd",ci,top_inds]
+        max.betas.even <- betas[runs=="even",,top_inds]
+        max.betas.odd  <- betas[runs=="odd",,top_inds]
         
-        cbind(even=max.betas.even, odd=max.betas.odd)
+        abind(even=max.betas.even, odd=max.betas.odd, along=-1)
       })
     })
   }, .parallel=TRUE)
-  dimnames(dat) <- list(subject=subjects, run.mask=runs.title, 
-                        category=categories.title, top.voxel=NULL, 
-                        run.data=runs.title)
-  dat <- aperm(dat, c(1,2,3,5,4))
+  dimnames(dat) <- list(subject=subjects, 
+                        run.mask=runs.title, category.mask=categories.title, 
+                        run.data=runs.title, category.data=categories.title, 
+                        top.voxel=NULL)
   dat
 }, .progress="text")
 names(topvox.betas) <- lst.nvoxs
@@ -156,19 +156,21 @@ names(topvox.betas) <- lst.nvoxs
 library(abind)
 dim(topvox.betas[[1]]) # subjs, run.mask, categ, vox, run.data
 # scale each subject's / roi's data
-grp.topvox <- aaply(topvox.betas[[1]], .(2,3,4), function(x) {
-  sx <- apply(x, 2, scale)
-  as.vector(sx)
+grp.topvox.betas <- llply(topvox.betas, function(xx) {
+  dat <- aaply(xx, .(2,3,4,5), function(x) {
+    sx <- apply(x, 2, scale)
+    as.vector(sx)
+  }, .parallel=TRUE)
+  names(dimnames(dat))[5] <- "voxel"
+  dat
 })
-names(dimnames(grp.topvox))[[4]] <- "top.voxel"
+
 
 
 ###
 # SAVE
 ###
 
-save(subjects, roi.names, roi.names.title, categories, categories.title, lst.nvoxs, 
-     sub.betas, sub.zstats, topvox.betas, grp.topvox, 
+save(subjects, runs, runs.title, categories, categories.title, lst.nvoxs, 
+     sub.betas, sub.zstats, topvox.betas, grp.topvox.betas, 
      file=file.path(corrdir, "maximal_activity_patterns.rda"))
-
-
