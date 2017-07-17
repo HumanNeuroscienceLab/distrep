@@ -1,58 +1,94 @@
-# Our goal for this script is to generate plots comparing the patterns of 
-# activity between pairs of categories for every neurosynth based ROI.
+#' ---
+#' title: "Category Information with Neurosynth ROIs in the Duke Dataset"
+#' author: "Zarrar Shehzad"
+#' date: "February 8th, 2016"
+#' output: 
+#'   html_document:
+#'     fig_caption: true
+#'     toc: true
+#'     number_sections: true
+#' ---
 
-# We generate outputs for the 'group-average' thresholded for significant 
-# results as well as the percent correct category detection measure.
-#
-# Note that this builds on `12_neurosynth_partial_correlations.R`.
-
-
-###
-# SETUP
-###
-
-# using dev version of ggplot??
-# install_github("hadley/scales")
-# install_github("hadley/ggplot2")
-
-# If no libraries found...load below:
+#' Our goal for this script is to generate plots comparing the patterns of 
+#' activity between pairs of categories for every neurosynth based ROI.
+#'
+#' We generate outputs for the 'group-average' thresholded for significant 
+#' results as well as the percent correct category detection measure.
+#'
+#' Note that this builds on `12_neurosynth_partial_correlations.R`.
+#'
+#' ## Load
+#' 
+#' ### Packages
+#' 
+#' using dev version of ggplot??
+#' install_github("hadley/scales")
+#' install_github("hadley/ggplot2")
+#' 
+#+ setup
 if (!any(.libPaths() == "/home/zshehzad/R_libs")) .libPaths(c("~/R_libs", .libPaths()))
 library(plyr)
 library(ggplot2)
 library(RColorBrewer)
-require(grid)
-require(gridExtra)
+suppressMessages(require(grid))
+suppressMessages(require(gridExtra))
 suppressMessages(library(niftir))
 suppressMessages(library(doMC))
 registerDoMC(24)
+library(pander) # for tables
 
-# Set some variables
+#' ### Data and Variables
+#' 
+#' We load the data and some relevant variables related to the ROIs
+#' 
+#+ load
+# Set some variables first
 base       <- "/data1/ffg05"
-corrdir    <- file.path(base, "analysis/haxby/correlation") # output directory
+corrdir    <- file.path(base, "analysis/duke/correlation") # output directory
+dir.create(file.path(corrdir, "plots"), showWarnings=F)
+# Load
+# note that the NULL setting is for the rstudio debugger
+subjects <- NULL; roi.names <- NULL; roi.names.title <- NULL
+categories <- NULL; categories.title <- NULL
+full.grp <- NULL; full.subs <- NULL; full.detect <- NULL
+load(file.path(corrdir, "neurosynth_full_correlations.rda"))
+# Setup other relevant variables
+#roi.vals      <- c(10, 12, 20, 22, 30, 32, 40, 50, 52, 60, 62, 70, 72)
+#roi.hemis     <- c("L", "R", "L", "R", "L", "R", "L", "L", "R", "L", "R", "L", #"R")
+#roi.names     <- c("FFA", "FFA", "PPA", "PPA", "LOC", "LOC", "VWF", "V1", "V1", #"M1", "M1", "A1", "A1")
+#roi.df        <- data.frame(vals=roi.vals, hemi=roi.hemis, names=roi.names, 
+#                            fullnames=paste(roi.hemis, roi.names))
+#roi.df        <- roi.df[-1,] # remove L FFA since it's small
 
-# Load the data
-ridge.grp <- NULL; ridge.subs <- NULL; ridge.detect <- NULL
-roi.names.title <- NULL
-load(file.path(corrdir, "neurosynth_partial_correlations.rda"))
-roi.vals      <- c(10, 12, 20, 22, 30, 32, 40, 50, 52, 60, 62, 70, 72)
-roi.hemis     <- c("L", "R", "L", "R", "L", "R", "L", "L", "R", "L", "R", "L", "R")
-roi.names     <- c("FFA", "FFA", "PPA", "PPA", "LOC", "LOC", "VWF", "V1", "V1", "M1", "M1", "A1", "A1")
-roi.df        <- data.frame(vals=roi.vals, hemi=roi.hemis, names=roi.names, 
-                            fullnames=paste(roi.hemis, roi.names))
-roi.df        <- roi.df[-1,] # remove L FFA since it's small
 
-
-
-###
-# Functions
-###
-
-# generic plot theme
+#' ## Functions
+#' 
+#' Any functions that we need. Here only the generic plot theme.
+#' 
+#+ functions
 mytheme <- theme_minimal(14) + 
   theme(axis.ticks = element_blank(), 
         panel.grid.major = element_blank(), 
         axis.title = element_blank())
 
+
+##' ## Select Data
+##' 
+##' To make the analysis more interpretable, we will be selecting the regions of
+##' interest. Specifically, we will take all the right hemisphere ROIs excluding
+##' the VWF.
+##' 
+##+ select-data
+#sinds <- roi.names.title %in% c("R FFA", "R PPA", "R LOC", "L VWF", "L V1", "L #M1", "L A1")
+## subject
+#subset.full.subs <- full.subs[,sinds,,,]
+#dimnames(subset.full.subs)$roi <- sub("[LR] ", "", roi.names.title[sinds])
+## group
+#subset.full.grp <- full.grp[sinds,,,]
+#dimnames(subset.full.grp)$roi <- sub("[LR] ", "", roi.names.title[sinds])
+## detect
+#subset.full.detect <- full.detect[,sinds,]
+#dimnames(subset.full.detect)$roi <- sub("[LR] ", "", roi.names.title[sinds])
 
 #' ## Filter Data
 #' 
@@ -70,38 +106,38 @@ ave.lst <- list(
 )
 # subjects
 nrois <- length(unique(gsub("[LR] ", "", roi.names.title)))
-dims  <- dim(ridge.subs); dims[2] <- nrois
-dns   <- dimnames(ridge.subs); dns$roi <- c("R FFA", "PPA", "LOC", "L VWF", "V1", "M1", "A1")
-subset.ridge.subs <- array(NA, dims, dimnames=dns)
-subset.ridge.subs[,1,,,] <- ridge.subs[,1,,,]
-subset.ridge.subs[,2,,,] <- apply(ridge.subs[,ave.lst$ppa,,,], c(1,3,4,5), mean)
-subset.ridge.subs[,3,,,] <- apply(ridge.subs[,ave.lst$loc,,,], c(1,3,4,5), mean)
-subset.ridge.subs[,4,,,] <- ridge.subs[,6,,,]
-subset.ridge.subs[,5,,,] <- apply(ridge.subs[,ave.lst$v1,,,], c(1,3,4,5), mean)
-subset.ridge.subs[,6,,,] <- apply(ridge.subs[,ave.lst$m1,,,], c(1,3,4,5), mean)
-subset.ridge.subs[,7,,,] <- apply(ridge.subs[,ave.lst$a1,,,], c(1,3,4,5), mean)
+dims  <- dim(full.subs); dims[2] <- nrois
+dns   <- dimnames(full.subs); dns$roi <- c("R FFA", "PPA", "LOC", "L VWF", "V1", "M1", "A1")
+subset.full.subs <- array(NA, dims, dimnames=dns)
+subset.full.subs[,1,,,] <- full.subs[,1,,,]
+subset.full.subs[,2,,,] <- apply(full.subs[,ave.lst$ppa,,,], c(1,3,4,5), mean)
+subset.full.subs[,3,,,] <- apply(full.subs[,ave.lst$loc,,,], c(1,3,4,5), mean)
+subset.full.subs[,4,,,] <- full.subs[,6,,,]
+subset.full.subs[,5,,,] <- apply(full.subs[,ave.lst$v1,,,], c(1,3,4,5), mean)
+subset.full.subs[,6,,,] <- apply(full.subs[,ave.lst$m1,,,], c(1,3,4,5), mean)
+subset.full.subs[,7,,,] <- apply(full.subs[,ave.lst$a1,,,], c(1,3,4,5), mean)
 # group
-dims  <- dim(ridge.grp); dims[1] <- nrois
-dns   <- dimnames(ridge.grp); dns$roi <- c("R FFA", "PPA", "LOC", "L VWF", "V1", "M1", "A1")
-subset.ridge.grp <- array(NA, dims, dimnames=dns)
-subset.ridge.grp[1,,,] <- ridge.grp[1,,,]
-subset.ridge.grp[2,,,] <- apply(ridge.grp[ave.lst$ppa,,,], 2:4, mean)
-subset.ridge.grp[3,,,] <- apply(ridge.grp[ave.lst$loc,,,], 2:4, mean)
-subset.ridge.grp[4,,,] <- ridge.grp[6,,,]
-subset.ridge.grp[5,,,] <- apply(ridge.grp[ave.lst$v1,,,], 2:4, mean)
-subset.ridge.grp[6,,,] <- apply(ridge.grp[ave.lst$m1,,,], 2:4, mean)
-subset.ridge.grp[7,,,] <- apply(ridge.grp[ave.lst$a1,,,], 2:4, mean)
+dims  <- dim(full.grp); dims[1] <- nrois
+dns   <- dimnames(full.grp); dns$roi <- c("R FFA", "PPA", "LOC", "L VWF", "V1", "M1", "A1")
+subset.full.grp <- array(NA, dims, dimnames=dns)
+subset.full.grp[1,,,] <- full.grp[1,,,]
+subset.full.grp[2,,,] <- apply(full.grp[ave.lst$ppa,,,], 2:4, mean)
+subset.full.grp[3,,,] <- apply(full.grp[ave.lst$loc,,,], 2:4, mean)
+subset.full.grp[4,,,] <- full.grp[6,,,]
+subset.full.grp[5,,,] <- apply(full.grp[ave.lst$v1,,,], 2:4, mean)
+subset.full.grp[6,,,] <- apply(full.grp[ave.lst$m1,,,], 2:4, mean)
+subset.full.grp[7,,,] <- apply(full.grp[ave.lst$a1,,,], 2:4, mean)
 # detect
-dims  <- dim(ridge.detect); dims[2] <- nrois
-dns   <- dimnames(ridge.detect); dns$roi <- c("R FFA", "PPA", "LOC", "L VWF", "V1", "M1", "A1")
-subset.ridge.detect <- array(NA, dims, dimnames=dns)
-subset.ridge.detect[,1,] <- ridge.detect[,1,]
-subset.ridge.detect[,2,] <- apply(ridge.detect[,ave.lst$ppa,], c(1,3), mean)
-subset.ridge.detect[,3,] <- apply(ridge.detect[,ave.lst$loc,], c(1,3), mean)
-subset.ridge.detect[,4,] <- ridge.detect[,6,]
-subset.ridge.detect[,5,] <- apply(ridge.detect[,ave.lst$v1,], c(1,3), mean)
-subset.ridge.detect[,6,] <- apply(ridge.detect[,ave.lst$m1,], c(1,3), mean)
-subset.ridge.detect[,7,] <- apply(ridge.detect[,ave.lst$a1,], c(1,3), mean)
+dims  <- dim(full.detect); dims[2] <- nrois
+dns   <- dimnames(full.detect); dns$roi <- c("R FFA", "PPA", "LOC", "L VWF", "V1", "M1", "A1")
+subset.full.detect <- array(NA, dims, dimnames=dns)
+subset.full.detect[,1,] <- full.detect[,1,]
+subset.full.detect[,2,] <- apply(full.detect[,ave.lst$ppa,], c(1,3), mean)
+subset.full.detect[,3,] <- apply(full.detect[,ave.lst$loc,], c(1,3), mean)
+subset.full.detect[,4,] <- full.detect[,6,]
+subset.full.detect[,5,] <- apply(full.detect[,ave.lst$v1,], c(1,3), mean)
+subset.full.detect[,6,] <- apply(full.detect[,ave.lst$m1,], c(1,3), mean)
+subset.full.detect[,7,] <- apply(full.detect[,ave.lst$a1,], c(1,3), mean)
 
 
 #' ## Format Data
@@ -116,8 +152,8 @@ subset.ridge.detect[,7,] <- apply(ridge.detect[,ave.lst$a1,], c(1,3), mean)
 #' 
 #+ format-data-group
 # Convert to a dataframe
-gdf <- reshape2::melt(subset.ridge.grp[,,,1], value.name="cor")
-gdf$zval <- reshape2::melt(subset.ridge.grp[,,,2])$value
+gdf <- reshape2::melt(subset.full.grp[,,,1], value.name="cor")
+gdf$zval <- reshape2::melt(subset.full.grp[,,,2])$value
 gdf <- subset(gdf, select=c("roi", "even", "odd", "cor", "zval"))
 # correct for multiple comparisons
 gdf$fdr.pval <- p.adjust(pt(gdf$zval, Inf, lower.tail=F), "fdr")
@@ -125,9 +161,9 @@ gdf$thr.cor <- gdf$cor * (gdf$fdr.pval < 0.05)
 gdf$thr.cor[gdf$thr.cor==0] <- NA # so the 0 box is blank when displaying plots
 # reorder for better display (face first)
 gdf$even <- factor(as.character(gdf$even),
-                   levels=rev(levels(gdf$even)))
-#gdf$odd <- factor(as.character(gdf$odd),
-#                  levels=levels(gdf$odd))
+                   levels=rev(levels(gdf$even)[c(1,3,2,4)]))
+gdf$odd <- factor(as.character(gdf$odd),
+                  levels=levels(gdf$odd)[c(1,3,2,4)])
 # add the category pair column
 gdf$category.pair <- "different"
 gdf$category.pair[gdf$even==gdf$odd] <- "same"
@@ -149,21 +185,21 @@ gdf <- gdf[,c("region.type", "roi", "category.pair", "even", "odd",
 #' ### Subject Results
 #' 
 #+ format-data-subjects
-sdf <- reshape2::melt(subset.ridge.subs[,,,,1], value.name="cor")     # Convert to a dataframe
+sdf <- reshape2::melt(subset.full.subs[,,,,1], value.name="cor")     # Convert to a dataframe
 # Fischer-z transform
 sdf$fisherz <- atanh(sdf$cor)
 sdf$fisherz[is.infinite(sdf$fisherz)] <- atanh(0.999)
 # Z-values
-sdf$zval <- reshape2::melt(subset.ridge.subs[,,,,2])$value
+sdf$zval <- reshape2::melt(subset.full.subs[,,,,2])$value
 # add the category pair column
 sdf$category.pair <- "different"
 sdf$category.pair[sdf$even==sdf$odd] <- "same"
 sdf$category.pair <- factor(sdf$category.pair)
 ## reorder for better display
 sdf$even <- factor(as.character(sdf$even),
-                   levels=rev(levels(sdf$even)))
-#sdf$odd <- factor(as.character(sdf$odd),
-#                  levels=levels(sdf$odd))
+                   levels=rev(levels(sdf$even)[c(1,3,2,4)]))
+sdf$odd <- factor(as.character(sdf$odd),
+                  levels=levels(sdf$odd)[c(1,3,2,4)])
 sdf$category.pair <- factor(as.character(sdf$category.pair),
                             levels=rev(levels(sdf$category.pair)))
 # add the region type column
@@ -181,8 +217,7 @@ head(sdf)
 #' ### Category Detection Results
 #' 
 #+ format-data-detect
-ddf <- reshape2::melt(subset.ridge.detect, value.name="accuracy")
-colnames(ddf)[3] <- "category"
+ddf <- reshape2::melt(subset.full.detect, value.name="accuracy")
 # get the average and standard-deviation of the accuracy
 # as well as the p-value using a binomial test
 ddf <- ddply(ddf, .(roi, category), function(x) {
@@ -196,7 +231,7 @@ ddf$fdr.pvalue <- p.adjust(ddf$pvalue, method="fdr")
 sum(ddf$pvalue < 0.05); sum(ddf$fdr.pvalue < 0.05)
 # reorder for better visual
 ddf$category <- factor(as.character(ddf$category), 
-                       levels=rev(levels(ddf$category)))
+                       levels=rev(levels(ddf$category)[c(1,3,2,4)]))
 # ok so let's see what we've got
 head(ddf)
 
@@ -232,7 +267,6 @@ xtable::xtable(res, digits=c(0,0,2,2,1,3))
 #' We can see that the main effects of ROI and category are significant 
 #' but the interaction effect.
 #+ unique-information-anova-table, results='asis'
-library(pander)
 panderOptions("digits", 2)
 pander(res)
 # maybe for later?
@@ -253,8 +287,6 @@ pander(res)
 dat <- subset(gdf, category.pair=="same")
 names(dat)[4] <- "category"
 dat <- dat[,-5]
-dat$category <- factor(as.character(dat$category), 
-                       levels=rev(levels(dat$category)))
 # finally plot
 p <- ggplot(dat, aes(roi, category, fill = thr.cor)) +
   geom_tile(colour="white", size=0.5) +
@@ -267,7 +299,7 @@ p <- ggplot(dat, aes(roi, category, fill = thr.cor)) +
   mytheme #+ 
 #theme(axis.text.x = element_blank())
 plot(p)
-ggsave(filename=file.path(corrdir, "plots", "unique_info_same_category.pdf"), 
+ggsave(filename=file.path(corrdir, "plots", "fullcorr_info_same_category.pdf"), 
        plot=p, width=12, height=6)
 
 
@@ -299,10 +331,7 @@ pander(res)
 #' ### Plot
 #' 
 #+ all-plot
-dat <- gdf
-dat$even <- factor(as.character(dat$even), 
-                       levels=rev(levels(dat$even)))
-p <- ggplot(dat, aes(roi, even, fill = thr.cor)) +
+p <- ggplot(gdf, aes(roi, even, fill = thr.cor)) +
   geom_tile(colour="white", size=0.5) +
   scale_fill_gradientn(name="Correlation", 
                        colours=brewer.pal(9,"YlOrRd"), 
@@ -313,8 +342,8 @@ p <- ggplot(dat, aes(roi, even, fill = thr.cor)) +
   mytheme #+ 
 #theme(axis.text.x = element_blank())
 plot(p)
-ggsave(filename=file.path(corrdir, "plots", "unique_info_all_pairs.pdf"), 
-       plot=p, width=10, height=10)
+ggsave(filename=file.path(corrdir, "plots", "fullcorr_info_all_pairs.pdf"), 
+       plot=p, width=12, height=6)
 
 
 #' ### Summary Bar Plot
@@ -324,20 +353,20 @@ ggsave(filename=file.path(corrdir, "plots", "unique_info_all_pairs.pdf"),
 #' 
 #+ summary-all-plot
 dat <- ddply(gdf, .(even, odd), function(x) c(num.sig=sum(x$fdr.pval<0.05)))
-#dat$even <- factor(as.character(dat$even),
-#                   levels=rev(levels(dat$even)))
-#cols <- brewer.pal(8, "Set2")[c(3,2,5,1)] # face, letters, fruits, car
+dat$even <- factor(as.character(dat$even),
+                   levels=rev(levels(dat$even)))
+cols <- brewer.pal(8, "Set2")[c(3,2,5,1)] # face, letters, fruits, car
 p <- ggplot(data=dat, aes(x=even, y=num.sig, fill=odd)) +
   geom_bar(stat="identity", position=position_dodge(), colour="grey10") + 
   xlab("") + ylab("Number of Significant Regions") + 
-  #scale_fill_manual(values=cols) + 
+  scale_fill_manual(values=cols) + 
   theme_minimal(14) + 
   theme(axis.ticks = element_blank(), 
         panel.grid.major.x = element_blank(), 
         axis.title = element_blank())
 plot(p)
-ggsave(filename=file.path(corrdir, "plots", "unique_info_summary_all_pairs.pdf"), 
-       plot=p, width=9, height=6)
+ggsave(filename=file.path(corrdir, "plots", "fullcorr_info_summary_all_pairs.pdf"), 
+       plot=p, width=8, height=6)
 
 
 #' ## Categorization Accuracy
@@ -347,25 +376,30 @@ ggsave(filename=file.path(corrdir, "plots", "unique_info_summary_all_pairs.pdf")
 #' Actually, let's ignore this section and focus on the plot.
 #'  
 #+ cat-acc-anova
-dat <- reshape2::melt(subset.ridge.detect, value.name="accuracy")
-colnames(dat)[3] <- "category"
+dat <- reshape2::melt(subset.full.detect, value.name="accuracy")
 dat$region.type <- "visual"
 dat$region.type[dat$roi %in% c("M1", "A1")] <- "control"
 dat$region.type <- factor(dat$region.type)
-#dat$category <- factor(as.character(dat$category),
-#                       levels=rev(levels(dat$category)))
+dat$category <- factor(as.character(dat$category),
+                       levels=levels(dat$category)[c(1,3,2,4)])
+
+# Run the anova but only within the visual areas
+#fit <- glm(accuracy ~ roi*category + Error(subjects), family=binomial(), data=dat)
+#fit <- aov(accuracy ~ roi*category + Error(subjects), data=subset(dat, region.type=="visual"))
+#res <- summary(fit)
+#res
+# for plotting in latex
+#xtable::xtable(res, digits=c(0,0,2,2,1,3))
+
 
 #' ### Table
 #' 
 #' This should be the table showing all that we need.
 #' 
 #+ cat-acc-table
-dat <- ddf
-dat$category <- factor(as.character(dat$category),
-                       levels=rev(levels(dat$category)))
-mean.arr <- reshape2::acast(dat, roi ~ category, value.var="mean")
-pval.arr <- reshape2::acast(dat, roi ~ category, value.var="fdr.pvalue")
-mat <- matrix(sprintf("%.1f%s", round(mean.arr*100, 1), gsub(" ", "", add.significance.stars(pval.arr))), 
+mean.arr <- reshape2::acast(ddf, roi ~ category, value.var="mean")
+pval.arr <- reshape2::acast(ddf, roi ~ category, value.var="fdr.pvalue")
+mat <- matrix(sprintf("%i%s", mean.arr*100, gsub(" ", "", add.significance.stars(pval.arr))), 
               nrow(mean.arr), ncol(mean.arr), dimnames=dimnames(mean.arr))
 xtable::xtable(mat)
 
@@ -380,7 +414,7 @@ pandoc.table(mat,
 ddf$label <- ifelse(ddf$fdr.pvalue<0.05, '*', '')
 (p <- ggplot(ddf, aes(roi, category, fill = mean)) +
   geom_tile(colour="white", size=1) + 
-  geom_text(aes(label=label), size=12, colour="white") + 
+  geom_text(aes(label=label), size=15, colour="white") + 
   scale_fill_gradientn(name="Classification Accuracy", 
                        colours=brewer.pal(9,"YlGn"), 
                        na.value="grey92") + 
@@ -388,5 +422,5 @@ ddf$label <- ifelse(ddf$fdr.pvalue<0.05, '*', '')
   xlab("Brain Regions") +
   ylab("") + 
   mytheme)
-ggsave(filename=file.path(corrdir, "plots", "categorization_accuracy.pdf"), 
-       plot=p, width=6, height=5)
+ggsave(filename=file.path(corrdir, "plots", "fullcorr_categorization_accuracy.pdf"), 
+       plot=p, width=6, height=4)

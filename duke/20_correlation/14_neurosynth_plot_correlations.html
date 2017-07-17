@@ -278,7 +278,7 @@ res &lt;- summary(fit)
 # for plotting in latex
 xtable::xtable(res, digits=c(0,0,2,2,1,3))</code></pre>
 <pre><code>## % latex table generated in R 3.2.2 by xtable 1.7-4 package
-## % Mon Feb  8 21:25:36 2016
+## % Tue Feb  9 14:03:05 2016
 ## \begin{table}[ht]
 ## \centering
 ## \begin{tabular}{lrrrrr}
@@ -400,7 +400,7 @@ res &lt;- summary(fit)
 # for plotting in latex
 xtable::xtable(res, digits=c(0,0,2,2,1,3))</code></pre>
 <pre><code>## % latex table generated in R 3.2.2 by xtable 1.7-4 package
-## % Mon Feb  8 21:25:37 2016
+## % Tue Feb  9 14:03:06 2016
 ## \begin{table}[ht]
 ## \centering
 ## \begin{tabular}{lrrrrr}
@@ -506,7 +506,6 @@ pval.arr &lt;- reshape2::acast(ddf, roi ~ category, value.var=&quot;fdr.pvalue&q
 mat &lt;- matrix(sprintf(&quot;%i%s&quot;, mean.arr*100, gsub(&quot; &quot;, &quot;&quot;, add.significance.stars(pval.arr))), 
               nrow(mean.arr), ncol(mean.arr), dimnames=dimnames(mean.arr))</code></pre>
 <pre class="r"><code>pandoc.table(mat, 
-             emphasize.italics.cells = which(mean.arr&gt;=min(pval.arr), arr.ind=TRUE), 
              caption = &quot;Shows the average categorization accuracy across subjects.&quot;)</code></pre>
 <table>
 <caption>Shows the average categorization accuracy across subjects.</caption>
@@ -529,52 +528,52 @@ mat &lt;- matrix(sprintf(&quot;%i%s&quot;, mean.arr*100, gsub(&quot; &quot;, &qu
 <tbody>
 <tr class="odd">
 <td align="center"><strong>FFA</strong></td>
-<td align="center"><em>75</em>***</td>
-<td align="center"><em>70</em>***</td>
-<td align="center">*50**</td>
-<td align="center"><em>30</em></td>
+<td align="center">75***</td>
+<td align="center">70***</td>
+<td align="center">50*</td>
+<td align="center">30</td>
 </tr>
 <tr class="even">
 <td align="center"><strong>PPA</strong></td>
-<td align="center">*55**</td>
-<td align="center"><em>70</em>***</td>
-<td align="center"><em>40</em></td>
-<td align="center"><em>60</em>**</td>
+<td align="center">55*</td>
+<td align="center">70***</td>
+<td align="center">40</td>
+<td align="center">60**</td>
 </tr>
 <tr class="odd">
 <td align="center"><strong>LOC</strong></td>
-<td align="center"><em>35</em></td>
-<td align="center"><em>75</em>***</td>
-<td align="center"><em>45</em></td>
-<td align="center"><em>30</em></td>
+<td align="center">35</td>
+<td align="center">75***</td>
+<td align="center">45</td>
+<td align="center">30</td>
 </tr>
 <tr class="even">
 <td align="center"><strong>VWF</strong></td>
-<td align="center"><em>35</em></td>
-<td align="center">*50**</td>
-<td align="center"><em>45</em></td>
-<td align="center"><em>25</em></td>
+<td align="center">35</td>
+<td align="center">50*</td>
+<td align="center">45</td>
+<td align="center">25</td>
 </tr>
 <tr class="odd">
 <td align="center"><strong>V1</strong></td>
-<td align="center"><em>70</em>***</td>
-<td align="center"><em>60</em>**</td>
-<td align="center"><em>40</em></td>
-<td align="center">*50**</td>
+<td align="center">70***</td>
+<td align="center">60**</td>
+<td align="center">40</td>
+<td align="center">50*</td>
 </tr>
 <tr class="even">
 <td align="center"><strong>M1</strong></td>
-<td align="center"><em>35</em></td>
-<td align="center"><em>30</em></td>
-<td align="center"><em>60</em>**</td>
-<td align="center"><em>35</em></td>
+<td align="center">35</td>
+<td align="center">30</td>
+<td align="center">60**</td>
+<td align="center">35</td>
 </tr>
 <tr class="odd">
 <td align="center"><strong>A1</strong></td>
-<td align="center"><em>45</em></td>
-<td align="center"><em>25</em></td>
-<td align="center">*50**</td>
-<td align="center"><em>30</em></td>
+<td align="center">45</td>
+<td align="center">25</td>
+<td align="center">50*</td>
+<td align="center">30</td>
 </tr>
 </tbody>
 </table>

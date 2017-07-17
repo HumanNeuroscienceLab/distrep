@@ -28,7 +28,7 @@ categories.title<- c("Face", "House", "Cat", "Bottle", "Scissors", "Shoe", "Chai
 runs       <- c("even", "odd")
 runs.title <- c("Even", "Odd")
 ## # of voxels
-lst.nvoxs  <- c(10, 20, 40, 80, 160)
+lst.nvoxs  <- c(10, 20, 30, 40, 80, 160, 320, 640)
 
 
 ###
@@ -84,12 +84,6 @@ get_maxinds <- function(subject, run, category, vtc, topk=30, use.zstats=TRUE) {
   return(top_inds)
 }
 
-get_betas <- function(subject, run, category, mask) {
-
-  
-  return(betas)
-}
-
 # Betas for every subject
 sub.betas <- llply(subjects, function(subject) {
   vtc <- read.roi(subject) # Read in the VTC
@@ -125,6 +119,7 @@ sub.zstats <- llply(subjects, function(subject) {
 names(sub.zstats) <- subjects
 
 # Loop through and get the maximal regions of activity
+library(abind)
 topvox.betas <- llply(lst.nvoxs, function(topk) { # top category-selective voxels to pick
   dat <- laply(subjects, function(subject) {
     betas  <- sub.betas[[subject]]
@@ -153,7 +148,6 @@ names(topvox.betas) <- lst.nvoxs
 
 
 # Now we concatenate the data across subjects for later group analysis
-library(abind)
 dim(topvox.betas[[1]]) # subjs, run.mask, categ, vox, run.data
 # scale each subject's / roi's data
 grp.topvox.betas <- llply(topvox.betas, function(xx) {

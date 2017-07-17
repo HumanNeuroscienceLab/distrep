@@ -1,5 +1,5 @@
 #' ---
-#' title: "Category Information with Neurosynth ROIs in the Duke Dataset"
+#' title: "Category Information with Maximal Responses in the Duke Dataset"
 #' author: "Zarrar Shehzad"
 #' date: "February 8th, 2016"
 #' output: 
@@ -10,12 +10,15 @@
 #' ---
 
 #' Our goal for this script is to generate plots comparing the patterns of 
-#' activity between pairs of categories for every neurosynth based ROI.
+#' activity between pairs of categories for every maximal response. That is 
+#' we get the maximal response in the even or odd dataset for faces and each of
+#' the other categories, and then apply each of those masks to the data for 
+#' faces and the other categories.
 #'
 #' We generate outputs for the 'group-average' thresholded for significant 
 #' results as well as the percent correct category detection measure.
 #'
-#' Note that this builds on `12_neurosynth_partial_correlations.R`.
+#' Note that this builds on `12_maximal_partial_correlations.R`.
 #'
 #' ## Load
 #' 
@@ -37,6 +40,7 @@ suppressMessages(library(doMC))
 registerDoMC(24)
 library(pander) # for tables
 
+
 #' ### Data and Variables
 #' 
 #' We load the data and some relevant variables related to the ROIs
@@ -51,14 +55,7 @@ dir.create(file.path(corrdir, "plots"), showWarnings=F)
 subjects <- NULL; roi.names <- NULL; roi.names.title <- NULL
 categories <- NULL; categories.title <- NULL
 ridge.grp <- NULL; ridge.subs <- NULL; ridge.detect <- NULL
-load(file.path(corrdir, "neurosynth_partial_correlations.rda"))
-# Setup other relevant variables
-#roi.vals      <- c(10, 12, 20, 22, 30, 32, 40, 50, 52, 60, 62, 70, 72)
-#roi.hemis     <- c("L", "R", "L", "R", "L", "R", "L", "L", "R", "L", "R", "L", #"R")
-#roi.names     <- c("FFA", "FFA", "PPA", "PPA", "LOC", "LOC", "VWF", "V1", "V1", #"M1", "M1", "A1", "A1")
-#roi.df        <- data.frame(vals=roi.vals, hemi=roi.hemis, names=roi.names, 
-#                            fullnames=paste(roi.hemis, roi.names))
-#roi.df        <- roi.df[-1,] # remove L FFA since it's small
+load(file.path(corrdir, "maximal_partial_correlations.rda"))
 
 
 #' ## Functions
@@ -72,72 +69,22 @@ mytheme <- theme_minimal(14) +
         axis.title = element_blank())
 
 
-##' ## Select Data
-##' 
-##' To make the analysis more interpretable, we will be selecting the regions of
-##' interest. Specifically, we will take all the right hemisphere ROIs excluding
-##' the VWF.
-##' 
-##+ select-data
-#sinds <- roi.names.title %in% c("R FFA", "R PPA", "R LOC", "L VWF", "L V1", "L #M1", "L A1")
-## subject
-#subset.ridge.subs <- ridge.subs[,sinds,,,]
-#dimnames(subset.ridge.subs)$roi <- sub("[LR] ", "", roi.names.title[sinds])
-## group
-#subset.ridge.grp <- ridge.grp[sinds,,,]
-#dimnames(subset.ridge.grp)$roi <- sub("[LR] ", "", roi.names.title[sinds])
-## detect
-#subset.ridge.detect <- ridge.detect[,sinds,]
-#dimnames(subset.ridge.detect)$roi <- sub("[LR] ", "", roi.names.title[sinds])
-
-#' ## Filter Data
+#' ## Select Data
 #' 
-#' To make the analysis more interpretable, we will be selecting the regions of
-#' interest. Before we had only taken one hemisphere. Here we will actually be
-#' averaging the results from any region with more than one hemisphere.
+#' Select only the 30 voxel data.
 #' 
 #+ select-data
-ave.lst <- list(
-  ppa = grep("PPA", roi.names.title), 
-  loc = grep("LOC", roi.names.title), 
-  v1 = grep("V1", roi.names.title), 
-  m1 = grep("M1", roi.names.title), 
-  a1 = grep("A1", roi.names.title)
-)
-# subjects
-nrois <- length(unique(gsub("[LR] ", "", roi.names.title)))
-dims  <- dim(ridge.subs); dims[2] <- nrois
-dns   <- dimnames(ridge.subs); dns$roi <- c("R FFA", "PPA", "LOC", "L VWF", "V1", "M1", "A1")
-subset.ridge.subs <- array(NA, dims, dimnames=dns)
-subset.ridge.subs[,1,,,] <- ridge.subs[,1,,,]
-subset.ridge.subs[,2,,,] <- apply(ridge.subs[,ave.lst$ppa,,,], c(1,3,4,5), mean)
-subset.ridge.subs[,3,,,] <- apply(ridge.subs[,ave.lst$loc,,,], c(1,3,4,5), mean)
-subset.ridge.subs[,4,,,] <- ridge.subs[,6,,,]
-subset.ridge.subs[,5,,,] <- apply(ridge.subs[,ave.lst$v1,,,], c(1,3,4,5), mean)
-subset.ridge.subs[,6,,,] <- apply(ridge.subs[,ave.lst$m1,,,], c(1,3,4,5), mean)
-subset.ridge.subs[,7,,,] <- apply(ridge.subs[,ave.lst$a1,,,], c(1,3,4,5), mean)
-# group
-dims  <- dim(ridge.grp); dims[1] <- nrois
-dns   <- dimnames(ridge.grp); dns$roi <- c("R FFA", "PPA", "LOC", "L VWF", "V1", "M1", "A1")
-subset.ridge.grp <- array(NA, dims, dimnames=dns)
-subset.ridge.grp[1,,,] <- ridge.grp[1,,,]
-subset.ridge.grp[2,,,] <- apply(ridge.grp[ave.lst$ppa,,,], 2:4, mean)
-subset.ridge.grp[3,,,] <- apply(ridge.grp[ave.lst$loc,,,], 2:4, mean)
-subset.ridge.grp[4,,,] <- ridge.grp[6,,,]
-subset.ridge.grp[5,,,] <- apply(ridge.grp[ave.lst$v1,,,], 2:4, mean)
-subset.ridge.grp[6,,,] <- apply(ridge.grp[ave.lst$m1,,,], 2:4, mean)
-subset.ridge.grp[7,,,] <- apply(ridge.grp[ave.lst$a1,,,], 2:4, mean)
-# detect
-dims  <- dim(ridge.detect); dims[2] <- nrois
-dns   <- dimnames(ridge.detect); dns$roi <- c("R FFA", "PPA", "LOC", "L VWF", "V1", "M1", "A1")
-subset.ridge.detect <- array(NA, dims, dimnames=dns)
-subset.ridge.detect[,1,] <- ridge.detect[,1,]
-subset.ridge.detect[,2,] <- apply(ridge.detect[,ave.lst$ppa,], c(1,3), mean)
-subset.ridge.detect[,3,] <- apply(ridge.detect[,ave.lst$loc,], c(1,3), mean)
-subset.ridge.detect[,4,] <- ridge.detect[,6,]
-subset.ridge.detect[,5,] <- apply(ridge.detect[,ave.lst$v1,], c(1,3), mean)
-subset.ridge.detect[,6,] <- apply(ridge.detect[,ave.lst$m1,], c(1,3), mean)
-subset.ridge.detect[,7,] <- apply(ridge.detect[,ave.lst$a1,], c(1,3), mean)
+# Get only 30 voxels
+# Collapse across even/odd run masks
+## grp
+subset.ridge.grp <- ridge.grp[3,,,,,]
+subset.ridge.grp <- apply(subset.ridge.grp, 2:5, mean)
+## subs
+subset.ridge.subs <- ridge.subs[3,,,,,,]
+subset.ridge.subs <- apply(subset.ridge.subs, c(1,3:6), mean)
+## detect
+subset.ridge.detect <- ridge.detect[3,,,,]
+subset.ridge.detect <- apply(subset.ridge.detect, c(1,3:4), mean)
 
 
 #' ## Format Data
@@ -154,12 +101,14 @@ subset.ridge.detect[,7,] <- apply(ridge.detect[,ave.lst$a1,], c(1,3), mean)
 # Convert to a dataframe
 gdf <- reshape2::melt(subset.ridge.grp[,,,1], value.name="cor")
 gdf$zval <- reshape2::melt(subset.ridge.grp[,,,2])$value
-gdf <- subset(gdf, select=c("roi", "even", "odd", "cor", "zval"))
+colnames(gdf) <- c("category.mask", "even", "odd", "cor", "zval")
 # correct for multiple comparisons
 gdf$fdr.pval <- p.adjust(pt(gdf$zval, Inf, lower.tail=F), "fdr")
 gdf$thr.cor <- gdf$cor * (gdf$fdr.pval < 0.05)
 gdf$thr.cor[gdf$thr.cor==0] <- NA # so the 0 box is blank when displaying plots
 # reorder for better display (face first)
+gdf$category.mask <- factor(as.character(gdf$category.mask),
+                            levels=rev(levels(gdf$category.mask)[c(1,3,2,4)]))
 gdf$even <- factor(as.character(gdf$even),
                    levels=rev(levels(gdf$even)[c(1,3,2,4)]))
 gdf$odd <- factor(as.character(gdf$odd),
@@ -171,21 +120,16 @@ gdf$category.pair <- factor(gdf$category.pair)
 ## reorder for better display
 gdf$category.pair <- factor(as.character(gdf$category.pair),
                             levels=rev(levels(gdf$category.pair)))
-# add the region type column
-gdf$region.type <- "visual"
-gdf$region.type[gdf$roi %in% c("M1", "A1")] <- "control"
-gdf$region.type <- factor(gdf$region.type)
-## reorder for better display
-gdf$region.type <- factor(as.character(gdf$region.type),
-                          levels=rev(levels(gdf$region.type)))
 # rearrange columns
-gdf <- gdf[,c("region.type", "roi", "category.pair", "even", "odd", 
+gdf <- gdf[,c("category.mask", "category.pair", "even", "odd", 
               "cor", "zval", "fdr.pval", "thr.cor")]
+
 
 #' ### Subject Results
 #' 
 #+ format-data-subjects
 sdf <- reshape2::melt(subset.ridge.subs[,,,,1], value.name="cor")     # Convert to a dataframe
+colnames(sdf)[3:4] <- c("even", "odd")
 # Fischer-z transform
 sdf$fisherz <- atanh(sdf$cor)
 sdf$fisherz[is.infinite(sdf$fisherz)] <- atanh(0.999)
@@ -196,23 +140,19 @@ sdf$category.pair <- "different"
 sdf$category.pair[sdf$even==sdf$odd] <- "same"
 sdf$category.pair <- factor(sdf$category.pair)
 ## reorder for better display
+sdf$category.mask <- factor(as.character(sdf$category.mask),
+                            levels=rev(levels(sdf$category.mask)[c(1,3,2,4)]))
 sdf$even <- factor(as.character(sdf$even),
                    levels=rev(levels(sdf$even)[c(1,3,2,4)]))
 sdf$odd <- factor(as.character(sdf$odd),
                   levels=levels(sdf$odd)[c(1,3,2,4)])
 sdf$category.pair <- factor(as.character(sdf$category.pair),
                             levels=rev(levels(sdf$category.pair)))
-# add the region type column
-sdf$region.type <- "visual"
-sdf$region.type[sdf$roi %in% c("M1", "A1")] <- "control"
-sdf$region.type <- factor(sdf$region.type)
-## reorder for better display
-sdf$region.type <- factor(as.character(sdf$region.type),
-                          levels=rev(levels(sdf$region.type)))
 # reorder columns
-sdf <- sdf[,c("subjects", "region.type", "roi", "category.pair", "even", "odd", 
+sdf <- sdf[,c("subject", "category.mask", "category.pair", "even", "odd", 
               "cor", "fisherz", "zval")]
 head(sdf)
+
 
 #' ### Category Detection Results
 #' 
@@ -220,7 +160,7 @@ head(sdf)
 ddf <- reshape2::melt(subset.ridge.detect, value.name="accuracy")
 # get the average and standard-deviation of the accuracy
 # as well as the p-value using a binomial test
-ddf <- ddply(ddf, .(roi, category), function(x) {
+ddf <- ddply(ddf, .(category.mask, category.data), function(x) {
   xmean <- mean(x$accuracy)
   xsd   <- sd(x$accuracy)
   xpval <- binom.test(round(mean(x$accuracy)*20), 20, p=0.25, alternative="greater")$p.value
@@ -230,8 +170,10 @@ ddf <- ddply(ddf, .(roi, category), function(x) {
 ddf$fdr.pvalue <- p.adjust(ddf$pvalue, method="fdr")
 sum(ddf$pvalue < 0.05); sum(ddf$fdr.pvalue < 0.05)
 # reorder for better visual
-ddf$category <- factor(as.character(ddf$category), 
-                       levels=rev(levels(ddf$category)[c(1,3,2,4)]))
+ddf$category.mask <- factor(as.character(ddf$category.mask), 
+                            levels=levels(ddf$category.mask)[c(1,3,2,4)])
+ddf$category.data <- factor(as.character(ddf$category.data), 
+                            levels=levels(ddf$category.data)[c(1,3,2,4)])
 # ok so let's see what we've got
 head(ddf)
 
@@ -252,27 +194,9 @@ head(ddf)
 #+ unique-information-anova
 # Setup the dataframe
 dat <- subset(sdf, category.pair=="same")    # Select only same category pairs
-dat$category <- dat$even        # Category column (even/odd same)
-# Focus for now on visual areas
-dat <- subset(dat, region.type=="visual")
-dat$roi <- factor(dat$roi)
+dat$category.data <- dat$even        # Category column (even/odd same)
 # Select columns
-dat <- subset(dat, select=c("subjects", "roi", "category", "cor", "fisherz", "zval"))
-# Run the anova but only within the visual areas
-fit <- aov(fisherz ~ roi*category + Error(subjects), data=dat)
-res <- summary(fit)
-# for plotting in latex
-xtable::xtable(res, digits=c(0,0,2,2,1,3))
-
-#' We can see that the main effects of ROI and category are significant 
-#' but the interaction effect.
-#+ unique-information-anova-table, results='asis'
-panderOptions("digits", 2)
-pander(res)
-# maybe for later?
-# ddply(sdf, .(roi), colwise(function(x) tanh(mean(x)), .(fisherz)))
-# ddply(sdf, .(roi), colwise(function(x) tanh(sd(x)), .(cor)))
-
+dat <- subset(dat, select=c("subject", "category.mask", "category.data", "cor", "fisherz", "zval"))
 
 #' #### Plots
 #' 
@@ -285,43 +209,24 @@ pander(res)
 #+ unique-information-plot
 # select only same category pairs
 dat <- subset(gdf, category.pair=="same")
-names(dat)[4] <- "category"
-dat <- dat[,-5]
+names(dat)[3] <- "category.data"
+dat <- dat[,-4]
+dat$category.mask <- factor(as.character(dat$category.mask), 
+                            levels=rev(levels(dat$category.mask)))
 # finally plot
-p <- ggplot(dat, aes(roi, category, fill = thr.cor)) +
+p <- ggplot(dat, aes(category.mask, category.data, fill = thr.cor)) +
   geom_tile(colour="white", size=0.5) +
   scale_fill_gradientn(name="Correlation", 
                        colours=brewer.pal(9,"YlOrRd"), 
                        na.value="grey92") + 
   ggtitle("Comparisons Between Categories") +
   xlab("Brain Regions") +
-  ylab("") + facet_grid(.~region.type, scales="free_x") + 
+  ylab("") + #facet_grid(.~region.type, scales="free_x") + 
   mytheme #+ 
 #theme(axis.text.x = element_blank())
 plot(p)
-ggsave(filename=file.path(corrdir, "plots", "unique_info_same_category.pdf"), 
+ggsave(filename=file.path(corrdir, "plots", "maximal_unique_info_same_category.pdf"), 
        plot=p, width=12, height=6)
-
-
-#' ### Visual vs Control Regions for Same Category
-#' 
-#' Let's also look at the comparison between the control regions and visual
-#' regions.
-#' 
-#+ unique-info-visual-vs-control
-dat <- subset(sdf, category.pair=="same")    # Select only same category pairs
-dat$category <- dat$even        # Category column (even/odd same)
-# Select columns
-dat <- subset(dat, select=c("subjects", "region.type", "roi", "category", "cor", "fisherz", "zval"))
-# ANOVA result
-fit <- aov(fisherz ~ region.type*category + Error(subjects), data=dat)
-res <- summary(fit)
-# for plotting in latex
-xtable::xtable(res, digits=c(0,0,2,2,1,3))
-
-#+ unique-info-visual-vs-control-table, results='asis'
-panderOptions("digits", 2)
-pander(res)
 
 
 #' ## All Categories
@@ -331,7 +236,10 @@ pander(res)
 #' ### Plot
 #' 
 #+ all-plot
-p <- ggplot(gdf, aes(roi, even, fill = thr.cor)) +
+dat <- gdf
+dat$category.mask <- factor(as.character(dat$category.mask), 
+                            levels=rev(levels(dat$category.mask)))
+p <- ggplot(dat, aes(category.mask, even, fill = thr.cor)) +
   geom_tile(colour="white", size=0.5) +
   scale_fill_gradientn(name="Correlation", 
                        colours=brewer.pal(9,"YlOrRd"), 
@@ -342,7 +250,7 @@ p <- ggplot(gdf, aes(roi, even, fill = thr.cor)) +
   mytheme #+ 
 #theme(axis.text.x = element_blank())
 plot(p)
-ggsave(filename=file.path(corrdir, "plots", "unique_info_all_pairs.pdf"), 
+ggsave(filename=file.path(corrdir, "plots", "maximal_unique_info_all_pairs.pdf"), 
        plot=p, width=12, height=6)
 
 
@@ -365,8 +273,9 @@ p <- ggplot(data=dat, aes(x=even, y=num.sig, fill=odd)) +
         panel.grid.major.x = element_blank(), 
         axis.title = element_blank())
 plot(p)
-ggsave(filename=file.path(corrdir, "plots", "unique_info_summary_all_pairs.pdf"), 
+ggsave(filename=file.path(corrdir, "plots", "maximal_unique_info_summary_all_pairs.pdf"), 
        plot=p, width=8, height=6)
+
 
 
 #' ## Categorization Accuracy
@@ -377,11 +286,10 @@ ggsave(filename=file.path(corrdir, "plots", "unique_info_summary_all_pairs.pdf")
 #'  
 #+ cat-acc-anova
 dat <- reshape2::melt(subset.ridge.detect, value.name="accuracy")
-dat$region.type <- "visual"
-dat$region.type[dat$roi %in% c("M1", "A1")] <- "control"
-dat$region.type <- factor(dat$region.type)
-dat$category <- factor(as.character(dat$category),
-                       levels=levels(dat$category)[c(1,3,2,4)])
+dat$category.mask <- factor(as.character(dat$category.mask),
+                            levels=levels(dat$category.mask)[c(1,3,2,4)])
+dat$category.data <- factor(as.character(dat$category.data),
+                            levels=levels(dat$category.data)[c(1,3,2,4)])
 
 # Run the anova but only within the visual areas
 #fit <- glm(accuracy ~ roi*category + Error(subjects), family=binomial(), data=dat)
@@ -397,9 +305,9 @@ dat$category <- factor(as.character(dat$category),
 #' This should be the table showing all that we need.
 #' 
 #+ cat-acc-table
-mean.arr <- reshape2::acast(ddf, roi ~ category, value.var="mean")
-pval.arr <- reshape2::acast(ddf, roi ~ category, value.var="fdr.pvalue")
-mat <- matrix(sprintf("%i%s", mean.arr*100, gsub(" ", "", add.significance.stars(pval.arr))), 
+mean.arr <- reshape2::acast(ddf, category.mask ~ category.data, value.var="mean")
+pval.arr <- reshape2::acast(ddf, category.mask ~ category.data, value.var="fdr.pvalue")
+mat <- matrix(sprintf("%i%s", round(mean.arr*100), gsub(" ", "", add.significance.stars(pval.arr))), 
               nrow(mean.arr), ncol(mean.arr), dimnames=dimnames(mean.arr))
 xtable::xtable(mat)
 
@@ -412,7 +320,10 @@ pandoc.table(mat,
 #' 
 #+ cat-acc-plot
 ddf$label <- ifelse(ddf$fdr.pvalue<0.05, '*', '')
-(p <- ggplot(ddf, aes(roi, category, fill = mean)) +
+ddf$category.mask <- factor(ddf$category.mask, 
+                            levels=rev(levels(ddf$category.mask)), 
+                            labels=rev(levels(ddf$category.mask)))
+(p <- ggplot(ddf, aes(category.data, category.mask, fill = mean)) +
   geom_tile(colour="white", size=1) + 
   geom_text(aes(label=label), size=15, colour="white") + 
   scale_fill_gradientn(name="Classification Accuracy", 
@@ -422,5 +333,54 @@ ddf$label <- ifelse(ddf$fdr.pvalue<0.05, '*', '')
   xlab("Brain Regions") +
   ylab("") + 
   mytheme)
-ggsave(filename=file.path(corrdir, "plots", "categorization_accuracy.pdf"), 
+ggsave(filename=file.path(corrdir, "plots", "maximal_categorization_accuracy.pdf"), 
        plot=p, width=6, height=4)
+
+
+
+#' ## All voxels
+#' 
+#' We will plot the pattern similarity for each of the different voxel size set.
+#' 
+#+ all-voxels
+dat <- apply(ridge.grp, c(1,3:6), mean)
+dat <- dat[,,,,1] # select the cor values
+dat <- reshape2::melt(dat, value.name="cor")
+dat <- dat[dat$even==dat$odd,] # only keep same
+dat <- dat[,-4]
+colnames(dat) <- c("topvox", "category.mask", "category.data", "cor")
+dat <- subset(dat, topvox!=30)
+cols <- brewer.pal(8, "Set2")[c(3,2,5,1)] # face, letters, fruits, car
+p <- ggplot(data=dat, aes(x=topvox, y=cor, color=category.data)) +
+  geom_line() + 
+  facet_wrap(~category.mask, ncol=2) + 
+  xlab("Most Selective Voxels") + ylab("Partial Correlation") + 
+  theme_minimal(14) + 
+  scale_color_manual(values=cols) + 
+  scale_x_log10(breaks=lst.nvoxs[-3]) + 
+  theme(axis.ticks = element_blank(), 
+        axis.title = element_blank())
+plot(p)
+ggsave(filename=file.path(corrdir, "plots", "maximal_corr_vox_lineplots.pdf"), 
+       plot=p, width=8, height=6)
+
+dat <- apply(ridge.detect, c(1,4:5), mean)
+dat <- reshape2::melt(dat, value.name="cor")
+dat <- subset(dat, topvox!=30)
+p <- ggplot(data=dat, aes(x=topvox, y=cor, color=category.data)) +
+  geom_line() + 
+  facet_wrap(~category.mask, ncol=2) + 
+  xlab("Most Selective Voxels") + ylab("Partial Correlation") + 
+  theme_minimal(14) + 
+  scale_color_manual(values=cols) + 
+  scale_x_log10(breaks=lst.nvoxs[-3]) + 
+  theme(axis.ticks = element_blank(), 
+        axis.title = element_blank())
+plot(p)
+ggsave(filename=file.path(corrdir, "plots", "maximal_categorization_vox_lineplots.pdf"), 
+       plot=p, width=8, height=6)
+
+
+
+
+  
